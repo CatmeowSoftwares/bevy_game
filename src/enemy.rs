@@ -1,3 +1,3 @@
 use bevy::prelude::*;
 #[derive(Component)]
-struct Enemy;
+pub struct Enemy;

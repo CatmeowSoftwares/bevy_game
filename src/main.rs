@@ -5,8 +5,12 @@ use bevy::{
     gltf,
     prelude::*,
     text::FontSmoothing,
+    window::CursorOptions,
 };
-use bevy_game::player::PlayerPlugin;
+use bevy_game::{
+    boss::BossPlugin, character::CharacterPlugin, player::PlayerPlugin, weapons::WeaponPlugin,
+};
+use bevy_inspector_egui::{bevy_egui::EguiPlugin, prelude::*, quick::WorldInspectorPlugin};
 use bevy_sprite3d::Sprite3dPlugin;
 const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
 
@@ -49,6 +53,11 @@ fn main() {
         .add_plugins(Sprite3dPlugin)
         .add_plugins(PhysicsPlugins::default())
         .add_plugins(PhysicsDebugPlugin)
+        .add_plugins((CharacterPlugin, BossPlugin))
+        .add_plugins(EguiPlugin::default())
+        .add_plugins(WorldInspectorPlugin::new())
+        .add_plugins(WeaponPlugin)
+        .add_systems(Startup, spawn_walls)
         .add_plugins(FpsOverlayPlugin {
             config: FpsOverlayConfig {
                 text_config: TextFont {
@@ -84,6 +93,28 @@ fn main() {
                         overlay.text_color = OverlayColor::RED;
                     } else {
                         overlay.text_color = OverlayColor::GREEN;
+                    }
+                }
+            },
+        )
+        .add_systems(Startup, |window_query: Single<&mut Window>| {
+            let mut window = window_query.into_inner();
+            window.title = "meow :3".to_owned();
+        })
+        .add_systems(
+            Update,
+            |cursor_options: Single<&mut CursorOptions>, keys: Res<ButtonInput<KeyCode>>| {
+                let mut cursor = cursor_options.into_inner();
+                if keys.just_pressed(KeyCode::F2) {
+                    cursor.visible = !cursor.visible;
+                    match cursor.grab_mode {
+                        bevy::window::CursorGrabMode::None => {
+                            cursor.grab_mode = bevy::window::CursorGrabMode::Locked
+                        }
+                        bevy::window::CursorGrabMode::Locked => {
+                            cursor.grab_mode = bevy::window::CursorGrabMode::None
+                        }
+                        _ => {}
                     }
                 }
             },
@@ -143,23 +174,64 @@ fn setup(
     // note that we have to include the `Scene0` label
     // to position our 3d model, simply use the Transform
     // in the SceneBundle
-    let (x, y, z) = (100.0, 0.5, 100.0);
-    let shape = meshes.add(Cuboid::new(x, y, z));
-    let material = materials.add(Color::srgb(0.5, 0.5, 0.5));
+    let map = asset_server.load("models/map.glb#Scene0");
     commands.spawn((
-        Mesh3d(shape),
-        MeshMaterial3d(material.clone()),
-        Transform::from_xyz(0.0, -10.0, 0.0),
+        SceneRoot(map.clone()),
         RigidBody::Static,
-        Collider::cuboid(x, y, z),
-        bevy_game::Ground,
+        Position::new(Vec3::new(0.0, -10.0, 0.0)),
+        ColliderConstructorHierarchy::new(ColliderConstructor::ConvexHullFromMesh),
     ));
+    /*
+       let (x, y, z) = (100.0, 0.5, 100.0);
+       let shape = meshes.add(Cuboid::new(x, y, z));
+       let material = materials.add(Color::srgb(0.5, 0.5, 0.5));
+       commands.spawn((
+           Mesh3d(shape),
+           MeshMaterial3d(material.clone()),
+           Transform::from_xyz(0.0, -20.0, 0.0),
+           RigidBody::Static,
+           Collider::cuboid(x, y, z),
+           bevy_game::Ground,
+       ));
+    */
+    let (x, y, z) = (20000.0, 1.0, 20000.0);
+    //void
+    commands
+        .spawn((
+            Collider::cuboid(x, y, z),
+            Void,
+            Sensor,
+            Transform::from_xyz(0.0, -50.0, 0.0),
+            CollisionEventsEnabled,
+        ))
+        .observe(return_to_start_on_touch);
+}
+#[derive(Component)]
+struct Void;
+fn return_to_start_on_touch(
+    event: On<CollisionStart>,
+    mut position_query: Query<(&mut Position, Option<&mut LinearVelocity>)>,
+) {
+    let Ok((mut position, linear_velocity)) = position_query.get_mut(event.collider2) else {
+        return;
+    };
+    **position = Vec3::ZERO;
+    if let Some(mut linear_velocity) = linear_velocity {
+        **linear_velocity = Vec3::ZERO;
+    }
+}
+fn spawn_walls(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let material = materials.add(Color::srgb(0.5, 0.5, 0.5));
     let (x, y, z) = (0.5, 50.0, 100.0);
     let shape = meshes.add(Cuboid::new(x, y, z));
     commands.spawn((
         Mesh3d(shape.clone()),
         MeshMaterial3d(material.clone()),
-        Transform::from_xyz(5.0, 0.0, 0.0),
+        Transform::from_xyz(50.0, 0.0, 0.0),
         RigidBody::Static,
         Collider::cuboid(x, y, z),
         bevy_game::Ground,
@@ -167,7 +239,7 @@ fn setup(
     commands.spawn((
         Mesh3d(shape.clone()),
         MeshMaterial3d(material.clone()),
-        Transform::from_xyz(-5.0, 0.0, 0.0),
+        Transform::from_xyz(-50.0, 0.0, 0.0),
         RigidBody::Static,
         Collider::cuboid(x, y, z),
         bevy_game::Ground,
@@ -177,7 +249,7 @@ fn setup(
     commands.spawn((
         Mesh3d(shape.clone()),
         MeshMaterial3d(material.clone()),
-        Transform::from_xyz(0.0, 0.0, 5.0),
+        Transform::from_xyz(0.0, 0.0, 50.0),
         RigidBody::Static,
         Collider::cuboid(x, y, z),
         bevy_game::Ground,
@@ -185,7 +257,7 @@ fn setup(
     commands.spawn((
         Mesh3d(shape.clone()),
         MeshMaterial3d(material.clone()),
-        Transform::from_xyz(0.0, 0.0, -5.0),
+        Transform::from_xyz(0.0, 0.0, -50.0),
         RigidBody::Static,
         Collider::cuboid(x, y, z),
         bevy_game::Ground,
