@@ -14,7 +14,7 @@ pub struct Player;
 struct MainPlayer;
 use bevy::input::mouse::AccumulatedMouseMotion;
 
-use crate::character::*;
+use crate::{boss::Target, character::*};
 pub struct PlayerPlugin;
 
 #[derive(Resource, Deref, DerefMut)]
@@ -138,9 +138,16 @@ fn setup(
     let player = player_cmd.id();
 
     let mut camera = Entity::PLACEHOLDER;
-    commands
-        .entity(player)
-        .with_children(|parent| camera = parent.spawn(camera_stuff).id());
+    commands.entity(player).with_children(|parent| {
+        camera = parent
+            .spawn((
+                camera_stuff,
+                RayCaster::default()
+                    .with_direction(Dir3::NEG_Z)
+                    .with_query_filter(SpatialQueryFilter::from_excluded_entities([player])),
+            ))
+            .id()
+    });
 
     **active_camera = camera;
     commands.spawn((
@@ -164,6 +171,16 @@ fn setup(
             Mesh3d(mesh),
             MeshMaterial3d(material),
         ));
+    }
+}
+
+fn set_target(query: Query<(&ChildOf, &Camera, &RayCaster, &RayHits)>, mut commands: Commands) {
+    for (child_of, cam, raycaster, rayhits) in query {
+        if let Some(hit) = rayhits.first() {
+            commands
+                .entity(child_of.parent())
+                .insert(Target(hit.entity));
+        }
     }
 }
 
@@ -452,39 +469,6 @@ fn melee_system(
                 *forces.linear_velocity_mut() = dir * 20.0;
             }
             _ => {}
-        }
-    }
-}
-
-fn cast_ray_test(
-    spatial_query: SpatialQuery,
-    melee_query: Query<(&GlobalTransform, &ChildOf), With<Melee>>,
-    mut player_query: Query<(Entity, Forces, &Transform), With<Player>>,
-    keys: Res<ButtonInput<KeyCode>>,
-    mut gizmos: Gizmos,
-) {
-    for (player_entity, mut player_forces, player_trans) in &mut player_query {
-        gizmos.sphere(Vec3::splat(10.0), 4.0, RED);
-        gizmos.cube(
-            Transform::from_translation(Vec3::Y * 0.5).with_scale(Vec3::splat(1.25)),
-            BLACK,
-        );
-        if keys.just_pressed(KeyCode::KeyX) {
-            println!("{:?}", player_trans.translation);
-            let has_hit = spatial_query.cast_ray(
-                player_trans.translation,
-                player_trans.rotation * Dir3::NEG_Z,
-                5.0,
-                true,
-                &SpatialQueryFilter::from_excluded_entities([player_entity]),
-            );
-
-            let Some(hit) = has_hit else {
-                println!("no hit very sad");
-                continue;
-            };
-            println!("hit! {:?}", hit);
-            player_forces.apply_force(Vec3::new(0.0, 100.0, 0.0));
         }
     }
 }
