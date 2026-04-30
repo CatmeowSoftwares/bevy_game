@@ -8,3 +8,6 @@ pub mod settings;
 pub mod weapons;
 #[derive(Component)]
 pub struct Ground;
+
+pub mod game;
+pub mod menu;

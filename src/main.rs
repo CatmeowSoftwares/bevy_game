@@ -2,13 +2,14 @@ use avian3d::prelude::*;
 use bevy::{
     dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin, FrameTimeGraphConfig},
     diagnostic::{self, DiagnosticsStore, FrameTimeDiagnosticsPlugin},
-    gltf,
+    gltf::{self, GltfPlugin, convert_coordinates::GltfConvertCoordinates},
     prelude::*,
     text::FontSmoothing,
     window::CursorOptions,
 };
 use bevy_game::{
-    boss::BossPlugin, character::CharacterPlugin, player::PlayerPlugin, weapons::WeaponPlugin,
+    boss::BossPlugin, character::CharacterPlugin, game::GamePlugin, player::PlayerPlugin,
+    weapons::WeaponPlugin,
 };
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, prelude::*, quick::WorldInspectorPlugin};
 use bevy_sprite3d::Sprite3dPlugin;
@@ -40,10 +41,21 @@ impl OverlayColor {
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.set(AssetPlugin {
-            watch_for_changes_override: Some(true),
-            ..Default::default()
-        }))
+        .add_plugins(
+            DefaultPlugins
+                .set(AssetPlugin {
+                    watch_for_changes_override: Some(true),
+
+                    ..Default::default()
+                })
+                .set(GltfPlugin {
+                    convert_coordinates: GltfConvertCoordinates {
+                        rotate_scene_entity: true,
+                        ..default()
+                    },
+                    ..default()
+                }),
+        )
         // Insert as resource the initial value for the settings resources
         .insert_resource(Volume(7))
         // Declare the game state, whose starting value is determined by the `Default` trait
@@ -58,6 +70,7 @@ fn main() {
         .add_plugins(WorldInspectorPlugin::new())
         .add_plugins(WeaponPlugin)
         .add_systems(Startup, spawn_walls)
+        .add_plugins(GamePlugin)
         .add_plugins(FpsOverlayPlugin {
             config: FpsOverlayConfig {
                 text_config: TextFont {

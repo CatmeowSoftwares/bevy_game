@@ -37,6 +37,22 @@ pub struct Health(pub u32);
 #[derive(Component, Deref, DerefMut, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MaxHealth(pub u32);
 
+#[derive(Component)]
+struct CustomDeath;
+
+#[derive(Event)]
+pub struct DamageEvent {
+    pub damage: u32,
+}
+fn damage_system(
+    event: On<DamageEvent>,
+    query: Query<(Entity, &Health, Option<&CustomDeath>)>,
+    mut commands: Commands,
+) {
+}
+
+#[derive(Component)]
+pub struct Head;
 impl Default for Health {
     fn default() -> Self {
         Self(100)
@@ -134,7 +150,7 @@ fn update_walled(
         let is_walled = is_left_walled || is_right_walled || is_front_walled || is_back_walled;
         if is_walled {
             commands.entity(entity).insert(Walled(dir));
-            movement.gravity = Vec3::splat(0.0);
+            movement.gravity = Vec3::splat(-0.981);
 
             // TODO: add player rotation when walled
         } else {

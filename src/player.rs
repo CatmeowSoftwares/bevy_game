@@ -91,11 +91,11 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let player_img = asset_server.load("player.png");
+    //let player_img = asset_server.load("player.png");
     let camera_stuff = (
         Camera3d::default(),
         Camera {
-            order: 0,
+            order: 1,
             ..Default::default()
         },
         Projection::from(PerspectiveProjection {
@@ -126,14 +126,17 @@ fn setup(
         //),
         //
         Name::new("Player"),
-        Sprite {
+        SceneRoot(
+            asset_server.load(GltfAssetLabel::Scene(0).from_asset("models/triple_t.glb#Scene0")),
+        ),
+        /*Sprite {
             image: player_img,
             ..Default::default()
         },
         Sprite3d {
             pixels_per_metre: 32.0,
             ..Default::default()
-        },
+        },*/
     ));
     let player = player_cmd.id();
 
@@ -153,7 +156,7 @@ fn setup(
     commands.spawn((
         Camera3d::default(),
         Camera {
-            order: 1,
+            order: 0,
             is_active: false,
             ..Default::default()
         },

@@ -41,8 +41,8 @@ struct ProgressBar {
     max_value: f32,
     interpolate: bool,
 }
-#[derive(Component, Deref, DerefMut, Default)]
-struct Target(Option<Entity>);
+#[derive(Component, Deref, DerefMut)]
+pub struct Target(pub Entity);
 
 #[derive(Component)]
 struct BossTheme(AudioSource);
@@ -63,8 +63,8 @@ fn on_boss_entered(
     asset_server: Res<AssetServer>,
 ) {
     let c = (
-        AudioPlayer::new(asset_server.load("uc3.ogg")),
-        PlaybackSettings::LOOP,
+        //AudioPlayer::new(asset_server.load("uc3.ogg")),
+        //PlaybackSettings::LOOP,
     );
     println!("BOSS HAS ENTERED!!!");
     //let image = asset_server.load("multiplier.png");
@@ -169,7 +169,6 @@ fn boss_test_init(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         },
         TripleT,
-        Target::default(),
         RigidBody::Kinematic,
         Collider::capsule(0.25, 1.5),
     ));
@@ -194,22 +193,20 @@ fn boss_test_update(
 struct TripleT;
 
 fn find_target(
-    mut predator_query: Query<(&mut Target, &Transform)>,
+    mut predator_query: Query<(Entity, &Transform)>,
     prey_query: Query<(Entity, &Transform), With<Character>>,
+    mut commands: Commands,
 ) {
-    for (mut target, trans) in &mut predator_query {
-        if target.is_some() {
-            continue;
-        }
-        let mut target_result: Option<Entity> = None;
+    for (entity, trans) in &mut predator_query {
+        let mut target_result: Entity = Entity::PLACEHOLDER;
         let mut prev = 0.0;
         for (prey_entity, prey_trans) in prey_query {
             if trans.translation.distance(prey_trans.translation) > prev {
-                target_result = Some(prey_entity);
+                target_result = prey_entity;
             }
             prev = trans.translation.distance(prey_trans.translation);
         }
-        **target = target_result;
+        commands.entity(entity).insert(Target(target_result));
     }
 }
 use avian3d::math::*;
@@ -222,11 +219,7 @@ fn triple_t_ai(
     time: Res<Time>,
 ) {
     for (mut forces, target, mut trans, movement) in query {
-        let Some(target) = **target else {
-            continue;
-        };
-
-        let Ok(target_trans) = trans_query.get(target) else {
+        let Ok(target_trans) = trans_query.get(**target) else {
             continue;
         };
         let linear_velocity = forces.linear_velocity_mut();
