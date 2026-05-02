@@ -1,4 +1,4 @@
-use crate::player::*;
+use crate::{game::GameState, player::*};
 use avian3d::{math::*, prelude::*};
 use bevy::prelude::*;
 use std::f32::consts::PI;
@@ -23,7 +23,8 @@ impl Plugin for CharacterPlugin {
                 move_and_slide,
                 apply_forces_to_dynamic_bodies,
             )
-                .chain(),
+                .chain()
+                .run_if(in_state(GameState::Game)),
         );
     }
 }

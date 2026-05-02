@@ -9,5 +9,6 @@ pub mod weapons;
 #[derive(Component)]
 pub struct Ground;
 
+pub mod endless;
 pub mod game;
 pub mod menu;

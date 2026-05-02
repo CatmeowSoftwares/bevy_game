@@ -14,7 +14,7 @@ pub struct Player;
 struct MainPlayer;
 use bevy::input::mouse::AccumulatedMouseMotion;
 
-use crate::{boss::Target, character::*};
+use crate::{boss::Target, character::*, game::GameState};
 pub struct PlayerPlugin;
 
 #[derive(Resource, Deref, DerefMut)]
@@ -31,48 +31,50 @@ struct CameraSwitch;
 struct CurrentCamera;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup)
-            .add_systems(Update, move_camera)
-            .add_systems(Update, move_debug_camera)
-            .add_observer(switch_camera)
-            .add_systems(Update, input_camera_switch)
-            .insert_resource(CurrentCameraUser::Player)
-            .insert_resource(ActiveCamera(Entity::PLACEHOLDER))
-            .add_systems(FixedUpdate, debug_camera_input_movement)
-            //.add_systems(FixedUpdate, (input_movement_system, slow_down).chain())
-            .add_systems(FixedUpdate, melee_system)
-            //.add_message::<Movement>()
-            //.add_systems(FixedUpdate, movement_system)
-            //.add_systems(Update, cast_ray_test)
-            .add_systems(
-                FixedUpdate,
-                |ray_caster_query: Query<(&RayCaster, &RayHits, &Transform)>,
-                 keys: Res<ButtonInput<KeyCode>>,
-                 ground_query: Query<&crate::Ground>,
-                 mut forces_query: Query<Forces>| {
-                    for (_ray_caster, ray_hits, trans) in &ray_caster_query {
-                        for hit in ray_hits.iter() {
-                            if !ground_query.contains(hit.entity) {
-                                if keys.just_pressed(KeyCode::KeyF) {
-                                    let res = forces_query.get_mut(hit.entity);
-                                    if let Ok(mut v) = res {
-                                        let dir = trans.rotation * Vec3::NEG_Z;
-                                        let force = dir.clamp_length_max(1.0);
-                                        *v.linear_velocity_mut() = force * 100.0;
-                                    }
-                                } else if keys.just_pressed(KeyCode::KeyG) {
-                                    let res = forces_query.get_mut(hit.entity);
-                                    if let Ok(mut v) = res {
-                                        let dir = trans.rotation * Vec3::Z;
-                                        let force = dir.clamp_length_max(1.0);
-                                        *v.linear_velocity_mut() = force * 100.0;
-                                    }
+        app.add_systems(OnEnter(GameState::Game), setup)
+            .add_systems(Update, move_camera.run_if(in_state(GameState::Game)));
+        /*
+        .add_systems(Update, move_debug_camera)
+        .add_observer(switch_camera)
+        .add_systems(Update, input_camera_switch)
+        .insert_resource(CurrentCameraUser::Player)
+        .insert_resource(ActiveCamera(Entity::PLACEHOLDER))
+        .add_systems(FixedUpdate, debug_camera_input_movement)
+        //.add_systems(FixedUpdate, (input_movement_system, slow_down).chain())
+        .add_systems(FixedUpdate, melee_system)
+        //.add_message::<Movement>()
+        //.add_systems(FixedUpdate, movement_system)
+        //.add_systems(Update, cast_ray_test)
+        .add_systems(
+            FixedUpdate,
+            |ray_caster_query: Query<(&RayCaster, &RayHits, &Transform)>,
+             keys: Res<ButtonInput<KeyCode>>,
+             ground_query: Query<&crate::Ground>,
+             mut forces_query: Query<Forces>| {
+                for (_ray_caster, ray_hits, trans) in &ray_caster_query {
+                    for hit in ray_hits.iter() {
+                        if !ground_query.contains(hit.entity) {
+                            if keys.just_pressed(KeyCode::KeyF) {
+                                let res = forces_query.get_mut(hit.entity);
+                                if let Ok(mut v) = res {
+                                    let dir = trans.rotation * Vec3::NEG_Z;
+                                    let force = dir.clamp_length_max(1.0);
+                                    *v.linear_velocity_mut() = force * 100.0;
+                                }
+                            } else if keys.just_pressed(KeyCode::KeyG) {
+                                let res = forces_query.get_mut(hit.entity);
+                                if let Ok(mut v) = res {
+                                    let dir = trans.rotation * Vec3::Z;
+                                    let force = dir.clamp_length_max(1.0);
+                                    *v.linear_velocity_mut() = force * 100.0;
                                 }
                             }
                         }
                     }
-                },
-            );
+                }
+            },
+        );
+         */
     }
 }
 
@@ -87,27 +89,13 @@ struct DebugCamera;
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut active_camera: ResMut<ActiveCamera>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    //let player_img = asset_server.load("player.png");
-    let camera_stuff = (
-        Camera3d::default(),
-        Camera {
-            order: 1,
-            ..Default::default()
-        },
-        Projection::from(PerspectiveProjection {
-            fov: 90.0_f32.to_radians(),
-            ..default()
-        }),
-        CurrentCamera,
-        Melee,
-    );
-    let player_cmd = commands.spawn((
+    commands.spawn((
         Player,
         Transform::from_xyz(0.0, 10.0, 0.0),
+        Camera3d::default(),
         Character,
         MainPlayer,
         CharacterController,
@@ -121,60 +109,11 @@ fn setup(
         RigidBody::Kinematic,
         Collider::capsule(0.25, 1.8),
         CollidingEntities::default(),
-        //SceneRoot(
-        //  asset_server.load(GltfAssetLabel::Scene(0).from_asset("models/player.glb#Scene0")),
-        //),
-        //
         Name::new("Player"),
         SceneRoot(
             asset_server.load(GltfAssetLabel::Scene(0).from_asset("models/triple_t.glb#Scene0")),
         ),
-        /*Sprite {
-            image: player_img,
-            ..Default::default()
-        },
-        Sprite3d {
-            pixels_per_metre: 32.0,
-            ..Default::default()
-        },*/
     ));
-    let player = player_cmd.id();
-
-    let mut camera = Entity::PLACEHOLDER;
-    commands.entity(player).with_children(|parent| {
-        camera = parent
-            .spawn((
-                camera_stuff,
-                RayCaster::default()
-                    .with_direction(Dir3::NEG_Z)
-                    .with_query_filter(SpatialQueryFilter::from_excluded_entities([player])),
-            ))
-            .id()
-    });
-
-    **active_camera = camera;
-    commands.spawn((
-        Camera3d::default(),
-        Camera {
-            order: 0,
-            is_active: false,
-            ..Default::default()
-        },
-        DebugCamera,
-        Transform::from_xyz(0.0, 0.0, 20.0),
-        RayCaster::default().with_direction(Dir3::NEG_Z),
-    ));
-    for _ in 0..5 {
-        let mesh = meshes.add(Sphere::new(1.0));
-        let material = materials.add(Color::srgb(0.5, 0.5, 0.5));
-
-        commands.spawn((
-            RigidBody::Dynamic,
-            Collider::sphere(1.0),
-            Mesh3d(mesh),
-            MeshMaterial3d(material),
-        ));
-    }
 }
 
 fn set_target(query: Query<(&ChildOf, &Camera, &RayCaster, &RayHits)>, mut commands: Commands) {
@@ -342,45 +281,43 @@ fn switch_camera(
 }
 fn move_camera(
     accumulated_mouse_motion: Res<AccumulatedMouseMotion>,
-    mut camera_query: Query<(&mut Transform, &ChildOf), (With<CurrentCamera>, Without<Player>)>,
+    camera_query: Query<(&mut Transform, &ChildOf), Without<Player>>,
     mut player: Query<&mut Transform, With<Player>>,
-    camera2: Res<ActiveCamera>,
 ) {
-    let camera = camera_query.get_mut(camera2.0);
-    //let mut transform = camera.into_inner();
-    let Ok((mut transform, child_of)) = camera else {
-        return;
-    };
-    let Ok(mut player_transform) = player.get_mut(child_of.parent()) else {
-        return;
-    };
-    let delta = accumulated_mouse_motion.delta;
+    for (mut transform, child_of) in camera_query {
+        //let mut transform = camera.into_inner();
 
-    if delta != Vec2::ZERO {
-        // Note that we are not multiplying by delta_time here.
-        // The reason is that for mouse input_movement, we already get the full input_movement that happened since the last frame.
-        // This means that if we multiply by delta_time, we will get a smaller rotation than intended by the user.
-        // This situation is reversed when reading e.g. analog input from a gamepad however, where the same rules
-        // as for keyboard input apply. Such an input should be multiplied by delta_time to get the intended rotation
-        // independent of the framerate.
-        let delta_yaw = -delta.x * 0.002;
-        let delta_pitch = -delta.y * 0.002;
+        let Ok(mut player_transform) = player.get_mut(child_of.parent()) else {
+            return;
+        };
+        let delta = accumulated_mouse_motion.delta;
 
-        let (yaw, _, _) = player_transform.rotation.to_euler(EulerRot::YXZ);
-        let yaw = yaw + delta_yaw;
+        if delta != Vec2::ZERO {
+            // Note that we are not multiplying by delta_time here.
+            // The reason is that for mouse input_movement, we already get the full input_movement that happened since the last frame.
+            // This means that if we multiply by delta_time, we will get a smaller rotation than intended by the user.
+            // This situation is reversed when reading e.g. analog input from a gamepad however, where the same rules
+            // as for keyboard input apply. Such an input should be multiplied by delta_time to get the intended rotation
+            // independent of the framerate.
+            let delta_yaw = -delta.x * 0.002;
+            let delta_pitch = -delta.y * 0.002;
 
-        // If the pitch was ±¹⁄₂ π, the camera would look straight up or down.
-        // When the user wants to move the camera back to the horizon, which way should the camera face?
-        // The camera has no way of knowing what direction was "forward" before landing in that extreme position,
-        // so the direction picked will for all intents and purposes be arbitrary.
-        // Another issue is that for mathematical reasons, the yaw will effectively be flipped when the pitch is at the extremes.
-        // To not run into these issues, we clamp the pitch to a safe range.
-        const PITCH_LIMIT: f32 = FRAC_PI_2 - 0.01;
-        let (_, pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
-        let pitch = (pitch + delta_pitch).clamp(-PITCH_LIMIT, PITCH_LIMIT);
+            let (yaw, _, _) = player_transform.rotation.to_euler(EulerRot::YXZ);
+            let yaw = yaw + delta_yaw;
 
-        transform.rotation = Quat::from_euler(EulerRot::YXZ, 0.0, pitch, 0.0);
-        player_transform.rotation = Quat::from_euler(EulerRot::YXZ, yaw, 0.0, 0.0);
+            // If the pitch was ±¹⁄₂ π, the camera would look straight up or down.
+            // When the user wants to move the camera back to the horizon, which way should the camera face?
+            // The camera has no way of knowing what direction was "forward" before landing in that extreme position,
+            // so the direction picked will for all intents and purposes be arbitrary.
+            // Another issue is that for mathematical reasons, the yaw will effectively be flipped when the pitch is at the extremes.
+            // To not run into these issues, we clamp the pitch to a safe range.
+            const PITCH_LIMIT: f32 = FRAC_PI_2 - 0.01;
+            let (_, pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
+            let pitch = (pitch + delta_pitch).clamp(-PITCH_LIMIT, PITCH_LIMIT);
+
+            transform.rotation = Quat::from_euler(EulerRot::YXZ, 0.0, pitch, 0.0);
+            player_transform.rotation = Quat::from_euler(EulerRot::YXZ, yaw, 0.0, 0.0);
+        }
     }
 }
 

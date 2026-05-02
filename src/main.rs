@@ -60,16 +60,16 @@ fn main() {
         .insert_resource(Volume(7))
         // Declare the game state, whose starting value is determined by the `Default` trait
         .init_state::<GameState>()
-        .add_systems(Startup, setup)
-        .add_plugins(PlayerPlugin)
+        //.add_plugins(PlayerPlugin)
         .add_plugins(Sprite3dPlugin)
         .add_plugins(PhysicsPlugins::default())
         .add_plugins(PhysicsDebugPlugin)
-        .add_plugins((CharacterPlugin, BossPlugin))
+        //.add_plugins((CharacterPlugin, BossPlugin))
         .add_plugins(EguiPlugin::default())
         .add_plugins(WorldInspectorPlugin::new())
-        .add_plugins(WeaponPlugin)
-        .add_systems(Startup, spawn_walls)
+        //.add_plugins(WeaponPlugin)
+        //.add_systems(Startup, setup)
+        //.add_systems(Startup, spawn_walls)
         .add_plugins(GamePlugin)
         .add_plugins(FpsOverlayPlugin {
             config: FpsOverlayConfig {

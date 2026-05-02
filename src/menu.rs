@@ -1,6 +1,6 @@
 use bevy::{color::palettes::css::*, prelude::*};
 
-use crate::game::{Difficulty, GameState};
+use crate::game::{Difficulty, GameMode, GameState};
 
 pub struct MenuPlugin;
 
@@ -19,6 +19,14 @@ impl Plugin for MenuPlugin {
             .add_systems(
                 Update,
                 difficulty_selector_system.run_if(in_state(MainMenuState::DifficultySelector)),
+            )
+            .add_systems(
+                OnEnter(MainMenuState::GameModeSelector),
+                game_mode_selector_init,
+            )
+            .add_systems(
+                Update,
+                game_mode_selector_system.run_if(in_state(MainMenuState::GameModeSelector)),
             );
     }
 }
@@ -29,6 +37,7 @@ enum MainMenuState {
     DifficultySelector,
     GameModeSelector,
     Settings,
+    Disabled,
 }
 #[derive(Component)]
 enum MainMenuButtonAction {
@@ -73,6 +82,17 @@ fn main_menu_init(mut commands: Commands) {
                 ..default()
             },
             children![
+                (
+                    Node {
+                        width: px(300),
+                        height: px(100),
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        border: UiRect::all(px(5)),
+                        ..Default::default()
+                    },
+                    children![Text::new("bevy_game"),]
+                ),
                 (
                     Button,
                     PlayButton,
@@ -185,6 +205,7 @@ fn difficulty_selector_init(mut commands: Commands) {
                     },
                     BackgroundColor(BLACK.into()),
                     BorderColor::all(WHITE),
+                    DifficultyButtonAction::Easy,
                     children![Text::new("Easy")],
                 ),
                 (
@@ -199,6 +220,7 @@ fn difficulty_selector_init(mut commands: Commands) {
                     BackgroundColor(BLACK.into()),
                     BorderColor::all(WHITE),
                     Button,
+                    DifficultyButtonAction::Medium,
                     children![Text::new("Medium"),],
                 ),
                 (
@@ -213,6 +235,7 @@ fn difficulty_selector_init(mut commands: Commands) {
                     BackgroundColor(BLACK.into()),
                     BorderColor::all(WHITE),
                     Button,
+                    DifficultyButtonAction::Hard,
                     children![Text::new("Hard"),],
                 )
             ]
@@ -242,6 +265,101 @@ fn difficulty_selector_system(
                 }
             }
             menu_state.set(MainMenuState::GameModeSelector);
+        }
+    }
+}
+
+fn game_mode_selector_init(mut commands: Commands) {
+    commands.spawn((
+        DespawnOnExit(MainMenuState::GameModeSelector),
+        Name::new("Game mode Selector"),
+        Node {
+            width: percent(100),
+            height: percent(100),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            ..default()
+        },
+        children![(
+            BackgroundColor(MAGENTA.into()),
+            Node {
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            children![
+                (
+                    Button,
+                    Node {
+                        width: px(200),
+                        height: px(50),
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        border: UiRect::all(px(5)),
+                        ..Default::default()
+                    },
+                    BackgroundColor(BLACK.into()),
+                    BorderColor::all(WHITE),
+                    GameModeButtonAction::StoryMode,
+                    children![Text::new("Story Mode")],
+                ),
+                (
+                    Node {
+                        width: px(200),
+                        height: px(50),
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        border: UiRect::all(px(5)),
+                        ..Default::default()
+                    },
+                    BackgroundColor(BLACK.into()),
+                    BorderColor::all(WHITE),
+                    Button,
+                    GameModeButtonAction::Endless,
+                    children![Text::new("Endless"),],
+                ),
+                (
+                    Node {
+                        width: px(200),
+                        height: px(50),
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        border: UiRect::all(px(5)),
+                        ..Default::default()
+                    },
+                    BackgroundColor(BLACK.into()),
+                    BorderColor::all(WHITE),
+                    Button,
+                    GameModeButtonAction::Sandbox,
+                    children![Text::new("Sandbox"),],
+                )
+            ]
+        )],
+    ));
+}
+
+fn game_mode_selector_system(
+    interaction_query: Query<
+        (&Interaction, &GameModeButtonAction),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut menu_state: ResMut<NextState<MainMenuState>>,
+    mut game_state: ResMut<NextState<GameState>>,
+    mut game_mode: ResMut<NextState<GameMode>>,
+) {
+    for (interaction, game_mode_button_action) in &interaction_query {
+        if *interaction == Interaction::Pressed {
+            match game_mode_button_action {
+                GameModeButtonAction::StoryMode => {
+                    println!("coming soon");
+                }
+                GameModeButtonAction::Endless => {}
+                GameModeButtonAction::Sandbox => {}
+            }
+            game_mode.set(GameMode::Endless);
+            game_state.set(GameState::Game);
+            menu_state.set(MainMenuState::Disabled);
         }
     }
 }
