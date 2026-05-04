@@ -11,7 +11,7 @@ use std::{f32::consts::FRAC_PI_2, ops::Add, time::Duration};
 #[derive(Component)]
 pub struct Player;
 #[derive(Component)]
-struct MainPlayer;
+pub struct MainPlayer;
 use bevy::input::mouse::AccumulatedMouseMotion;
 
 use crate::{boss::Target, character::*, game::GameState};
@@ -86,6 +86,13 @@ fn input_camera_switch(keys: Res<ButtonInput<KeyCode>>, mut commands: Commands) 
 fn parry_system() {}
 #[derive(Component)]
 struct DebugCamera;
+
+#[derive(Component)]
+pub struct PlayerUi;
+
+#[derive(Component)]
+pub struct WallRunner;
+
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -93,11 +100,10 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     commands.spawn((
-        Player,
+        (Player, MainPlayer),
+        WallRunner,
         Transform::from_xyz(0.0, 10.0, 0.0),
-        Camera3d::default(),
         Character,
-        MainPlayer,
         CharacterController,
         CharacterMovementSettings::default(),
         CharacterCollisions::default(),
@@ -110,9 +116,24 @@ fn setup(
         Collider::capsule(0.25, 1.8),
         CollidingEntities::default(),
         Name::new("Player"),
+        children![(
+            Camera {
+                order: 1,
+                ..default()
+            },
+            Camera3d::default()
+        ),],
         SceneRoot(
             asset_server.load(GltfAssetLabel::Scene(0).from_asset("models/triple_t.glb#Scene0")),
         ),
+    ));
+    commands.spawn((
+        PlayerUi,
+        Node {
+            width: percent(100),
+            height: percent(100),
+            ..default()
+        },
     ));
 }
 

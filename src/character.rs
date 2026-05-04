@@ -6,7 +6,7 @@ pub struct CharacterPlugin;
 
 impl Plugin for CharacterPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<MovementAction>();
+        app.add_message::<Movement>();
 
         // Collect input in `PreUpdate` so that it's processed before the physics update.
         app.add_systems(PreUpdate, (keyboard_input, gamepad_input).chain());
@@ -29,7 +29,7 @@ impl Plugin for CharacterPlugin {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct Character;
 
 #[derive(Component, Deref, DerefMut, PartialEq, Eq, PartialOrd, Ord)]
@@ -71,12 +71,15 @@ pub struct Shield(pub u32);
 struct Walled(Vec3);
 fn update_walled(
     mut commands: Commands,
-    mut query: Query<(
-        Entity,
-        &GroundDetection,
-        &GlobalTransform,
-        &mut CharacterMovementSettings,
-    )>,
+    mut query: Query<
+        (
+            Entity,
+            &GroundDetection,
+            &GlobalTransform,
+            &mut CharacterMovementSettings,
+        ),
+        With<WallRunner>,
+    >,
     spatial_query: SpatialQuery,
 ) {
     for (entity, ground_detection, global_transform, mut movement) in &mut query {
@@ -161,8 +164,13 @@ fn update_walled(
     }
 }
 
-/// A [`Message`] written for a movement input action.
 #[derive(Message)]
+pub struct Movement {
+    entity: Entity,
+    movement_action: MovementAction,
+}
+
+/// A [`Message`] written for a movement input action.
 pub enum MovementAction {
     Move(Vector2),
     Jump,
@@ -264,8 +272,9 @@ pub struct CharacterCollision {
 
 /// Sends [`MovementAction`] events based on keyboard input.
 fn keyboard_input(
-    mut movement_writer: MessageWriter<MovementAction>,
+    mut movement_writer: MessageWriter<Movement>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
+    player: Single<Entity, With<MainPlayer>>,
 ) {
     let up = keyboard_input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]);
     let down = keyboard_input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]);
@@ -277,28 +286,44 @@ fn keyboard_input(
     let direction = Vector2::new(horizontal as Scalar, vertical as Scalar).clamp_length_max(1.0);
 
     if direction != Vector2::ZERO {
-        movement_writer.write(MovementAction::Move(direction));
+        movement_writer.write(Movement {
+            entity: player.entity(),
+            movement_action: MovementAction::Move(direction),
+        });
     }
 
     if keyboard_input.just_pressed(KeyCode::Space) {
-        movement_writer.write(MovementAction::Jump);
+        movement_writer.write(Movement {
+            entity: *player,
+            movement_action: MovementAction::Jump,
+        });
     }
 }
 
 /// Sends [`MovementAction`] events based on gamepad input.
-fn gamepad_input(mut movement_writer: MessageWriter<MovementAction>, gamepads: Query<&Gamepad>) {
+fn gamepad_input(
+    mut movement_writer: MessageWriter<Movement>,
+    gamepads: Query<&Gamepad>,
+    player: Single<Entity, With<MainPlayer>>,
+) {
     for gamepad in gamepads.iter() {
         if let (Some(x), Some(y)) = (
             gamepad.get(GamepadAxis::LeftStickX),
             gamepad.get(GamepadAxis::LeftStickY),
         ) {
-            movement_writer.write(MovementAction::Move(
-                Vector2::new(x as Scalar, y as Scalar).clamp_length_max(1.0),
-            ));
+            movement_writer.write(Movement {
+                entity: *player,
+                movement_action: MovementAction::Move(
+                    Vector2::new(x as Scalar, y as Scalar).clamp_length_max(1.0),
+                ),
+            });
         }
 
         if gamepad.just_pressed(GamepadButton::South) {
-            movement_writer.write(MovementAction::Jump);
+            movement_writer.write(Movement {
+                entity: *player,
+                movement_action: MovementAction::Jump,
+            });
         }
     }
 }
@@ -345,7 +370,7 @@ fn update_grounded(
 /// Responds to [`MovementAction`] events and moves character controllers accordingly.
 fn movement(
     time: Res<Time>,
-    mut movement_reader: MessageReader<MovementAction>,
+    mut movement_reader: MessageReader<Movement>,
     mut controllers: Query<(
         &CharacterMovementSettings,
         &mut LinearVelocity,
@@ -357,34 +382,37 @@ fn movement(
     let delta_secs = time.delta_secs_f64().adjust_precision();
 
     for event in movement_reader.read() {
-        for (movement, mut linear_velocity, trans, is_grounded, walled) in &mut controllers {
-            match event {
-                MovementAction::Move(direction) => {
-                    let old_velocity = **linear_velocity;
-                    let old_speed = Vec3::new(linear_velocity.x, 0.0, linear_velocity.z).length();
+        let Ok((movement, mut linear_velocity, trans, is_grounded, walled)) =
+            controllers.get_mut(event.entity)
+        else {
+            continue;
+        };
+        match event.movement_action {
+            MovementAction::Move(direction) => {
+                let old_velocity = **linear_velocity;
+                let old_speed = Vec3::new(linear_velocity.x, 0.0, linear_velocity.z).length();
 
-                    let power = if is_grounded { 1.0 } else { 0.25 };
-                    let rot = (trans.rotation * Vec3::new(direction.x, 0.0, -direction.y))
-                        .clamp_length_max(1.0);
-                    linear_velocity.x += rot.x * movement.acceleration * delta_secs * power;
-                    linear_velocity.z += rot.z * movement.acceleration * delta_secs * power;
-                    let speed = Vec3::new(linear_velocity.x, 0.0, linear_velocity.z).length();
+                let power = if is_grounded { 1.0 } else { 0.25 };
+                let rot = (trans.rotation * Vec3::new(direction.x, 0.0, -direction.y))
+                    .clamp_length_max(1.0);
+                linear_velocity.x += rot.x * movement.acceleration * delta_secs * power;
+                linear_velocity.z += rot.z * movement.acceleration * delta_secs * power;
+                let speed = Vec3::new(linear_velocity.x, 0.0, linear_velocity.z).length();
 
-                    if speed > old_speed.max(10.0) {
-                        linear_velocity.x = old_velocity.x;
-                        linear_velocity.z = old_velocity.z;
-                    }
+                if speed > old_speed.max(10.0) {
+                    linear_velocity.x = old_velocity.x;
+                    linear_velocity.z = old_velocity.z;
                 }
-                MovementAction::Jump => {
-                    if is_grounded {
-                        linear_velocity.y = movement.jump_impulse;
-                    } else if let Some(walled) = walled {
-                        let walled = **walled;
-                        let power = 2.0;
-                        linear_velocity.x += (walled.x * power) * movement.jump_impulse;
-                        linear_velocity.z += (walled.z * power) * movement.jump_impulse;
-                        linear_velocity.y = movement.jump_impulse;
-                    }
+            }
+            MovementAction::Jump => {
+                if is_grounded {
+                    linear_velocity.y = movement.jump_impulse;
+                } else if let Some(walled) = walled {
+                    let walled = **walled;
+                    let power = 2.0;
+                    linear_velocity.x += (walled.x * power) * movement.jump_impulse;
+                    linear_velocity.z += (walled.z * power) * movement.jump_impulse;
+                    linear_velocity.y = movement.jump_impulse;
                 }
             }
         }

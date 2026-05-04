@@ -425,6 +425,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1fd310426290cec560221f9750c2f4484be4a8eeea7de3483c423329b465c40e"
 dependencies = [
  "bevy_internal",
+ "tracing",
 ]
 
 [[package]]
@@ -583,6 +584,7 @@ dependencies = [
  "downcast-rs 2.0.2",
  "log",
  "thiserror 2.0.18",
+ "tracing",
  "variadics_please",
  "wasm-bindgen",
  "web-sys",
@@ -816,6 +818,7 @@ dependencies = [
  "slotmap",
  "smallvec",
  "thiserror 2.0.18",
+ "tracing",
  "variadics_please",
 ]
 
@@ -922,8 +925,10 @@ dependencies = [
  "avian3d",
  "bevy",
  "bevy-inspector-egui",
+ "bevy_rand",
  "bevy_sprite3d",
  "rand 0.10.1",
+ "rand_core 0.10.1",
 ]
 
 [[package]]
@@ -1196,6 +1201,7 @@ dependencies = [
  "bevy_platform",
  "bevy_utils",
  "tracing",
+ "tracing-error",
  "tracing-log",
  "tracing-oslog",
  "tracing-subscriber",
@@ -1377,10 +1383,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_prng"
+version = "0.14.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c7f82969910be95e576a6a5c851d476302890a23274619d918b01c407ce4e94"
+dependencies = [
+ "bevy_ecs",
+ "bevy_reflect",
+ "chacha20",
+ "getrandom 0.4.2",
+ "rand_core 0.10.1",
+ "rand_core 0.9.5",
+ "rand_pcg",
+ "rand_xoshiro",
+ "serde",
+ "wyrand",
+]
+
+[[package]]
 name = "bevy_ptr"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7a9329e8dc4e01ced480eeec4902e6d7cb56e56ec37f6fbc4323e5c937290a7"
+
+[[package]]
+name = "bevy_rand"
+version = "0.14.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "526ba09324b96fb64f275a0cb4f6112d36b6c916ce2f14e38d5a8739dd2ac7f9"
+dependencies = [
+ "bevy_app",
+ "bevy_ecs",
+ "bevy_prng",
+ "bevy_reflect",
+ "getrandom 0.4.2",
+ "rand_core 0.10.1",
+ "rand_core 0.9.5",
+]
 
 [[package]]
 name = "bevy_reflect"
@@ -1465,6 +1504,7 @@ dependencies = [
  "naga",
  "nonmax",
  "offset-allocator",
+ "profiling",
  "send_wrapper",
  "smallvec",
  "thiserror 2.0.18",
@@ -4735,6 +4775,20 @@ name = "profiling"
 version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3eb8486b569e12e2c32ad3e204dbaba5e4b5b216e9367044f25f1dba42341773"
+dependencies = [
+ "profiling-procmacros",
+ "tracing",
+]
+
+[[package]]
+name = "profiling-procmacros"
+version = "1.0.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52717f9a02b6965224f95ca2a81e2e0c5c43baacd28ca057577988930b6c3d5b"
+dependencies = [
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "pxfm"
@@ -4838,6 +4892,26 @@ checksum = "6a8615d50dcf34fa31f7ab52692afec947c4dd0ab803cc87cb3b0b4570ff7463"
 dependencies = [
  "num-traits",
  "rand 0.9.4",
+]
+
+[[package]]
+name = "rand_pcg"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "caa0f4137e1c0a72f4c651489402276c8e8e1cf081f3b0ba156d2cbeef09e86a"
+dependencies = [
+ "rand_core 0.10.1",
+ "serde",
+]
+
+[[package]]
+name = "rand_xoshiro"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f0b2cc7bfeef8f0320ca45f88b00157a03c67137022d59393614352d6bf4312"
+dependencies = [
+ "rand_core 0.10.1",
+ "serde",
 ]
 
 [[package]]
@@ -5662,6 +5736,16 @@ checksum = "db97caf9d906fbde555dd62fa95ddba9eecfd14cb388e4f491a66d74cd5fb79a"
 dependencies = [
  "once_cell",
  "valuable",
+]
+
+[[package]]
+name = "tracing-error"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b1581020d7a273442f5b45074a6a57d5757ad0a47dac0e9f0bd57b81936f3db"
+dependencies = [
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -6882,6 +6966,16 @@ dependencies = [
  "serde_json",
  "unicode-xid",
  "wasmparser",
+]
+
+[[package]]
+name = "wyrand"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5484c3d24f0e2e117d30bce6f8792e193be33e2b6e0b3f8945ccf265c56c6da"
+dependencies = [
+ "rand_core 0.10.1",
+ "serde",
 ]
 
 [[package]]

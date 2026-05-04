@@ -1,9 +1,9 @@
-use bevy::prelude::*;
-
 use crate::{
-    character::CharacterPlugin, endless::EndlessPlugin, menu::MenuPlugin, player::PlayerPlugin,
+    character::CharacterPlugin, endless::EndlessPlugin, enemy::EnemyPlugin, menu::MenuPlugin,
+    player::PlayerPlugin,
 };
-
+use bevy::prelude::*;
+use bevy_rand::prelude::*;
 pub struct GamePlugin;
 
 #[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
@@ -27,6 +27,7 @@ pub enum GameMode {
     Endless,
     Sandbox,
 }
+
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<GameState>();
@@ -35,15 +36,18 @@ impl Plugin for GamePlugin {
         app.add_systems(Startup, setup);
         app.add_plugins(MenuPlugin);
         app.add_plugins(PlayerPlugin);
+        app.add_plugins(EnemyPlugin);
         app.add_plugins(CharacterPlugin);
         app.add_plugins(EndlessPlugin);
+        app.add_plugins(EntropyPlugin::<WyRand>::default());
     }
 }
+
 fn setup(mut commands: Commands) {
     commands.spawn((
         Camera2d,
         Camera {
-            order: 1,
+            order: 0,
             ..default()
         },
     ));

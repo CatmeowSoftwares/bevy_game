@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::{color::palettes::css::*, prelude::*};
 
 use crate::game::{Difficulty, GameMode, GameState};
@@ -11,6 +13,10 @@ impl Plugin for MenuPlugin {
             .add_systems(
                 Update,
                 main_menu_system.run_if(in_state(MainMenuState::MainMenu)),
+            )
+            .add_systems(
+                Update,
+                update_secret_button.run_if(in_state(MainMenuState::MainMenu)),
             )
             .add_systems(
                 OnEnter(MainMenuState::DifficultySelector),
@@ -34,6 +40,7 @@ impl Plugin for MenuPlugin {
 enum MainMenuState {
     #[default]
     MainMenu,
+    Secret,
     DifficultySelector,
     GameModeSelector,
     Settings,
@@ -57,6 +64,13 @@ enum GameModeButtonAction {
     Endless,
     Sandbox,
 }
+
+#[derive(Component, Deref, DerefMut)]
+struct SecretTimer(Timer);
+
+#[derive(Component)]
+struct SecretButtonDown;
+
 #[derive(Component)]
 struct PlayButton;
 #[derive(Component)]
@@ -94,6 +108,7 @@ fn main_menu_init(mut commands: Commands) {
                     children![Text::new("bevy_game"),]
                 ),
                 (
+                    SecretTimer(Timer::new(Duration::from_secs(5), TimerMode::Once)),
                     Button,
                     PlayButton,
                     MainMenuButtonAction::Play,
@@ -147,18 +162,25 @@ fn main_menu_init(mut commands: Commands) {
 }
 
 fn main_menu_system(
-    interaction_query: Query<
-        (&Interaction, &MainMenuButtonAction),
+    mut interaction_query: Query<
+        (
+            Entity,
+            &Interaction,
+            &MainMenuButtonAction,
+            Option<&SecretTimer>,
+        ),
         (Changed<Interaction>, With<Button>),
     >,
+    mut commands: Commands,
     mut menu_state: ResMut<NextState<MainMenuState>>,
     mut app_exit_writer: MessageWriter<AppExit>,
 ) {
-    for (interaction, menu_button_action) in &interaction_query {
+    for (entity, interaction, menu_button_action, secret_timer) in &mut interaction_query {
         if *interaction == Interaction::Pressed {
             println!("pressed !!!!!");
             match menu_button_action {
                 MainMenuButtonAction::Play => {
+                    commands.entity(entity).insert(SecretButtonDown);
                     menu_state.set(MainMenuState::DifficultySelector);
                 }
                 MainMenuButtonAction::Settings => {
@@ -168,10 +190,36 @@ fn main_menu_system(
                     app_exit_writer.write(AppExit::Success);
                 }
             }
+        } else if *interaction == Interaction::Hovered {
+            match menu_button_action {
+                MainMenuButtonAction::Play => {
+                    commands.entity(entity).remove::<SecretButtonDown>();
+                    let Some(secret_timer) = secret_timer else {
+                        break;
+                    };
+                    if secret_timer.is_finished() {
+                        menu_state.set(MainMenuState::Secret);
+                    } else {
+                        menu_state.set(MainMenuState::DifficultySelector);
+                    }
+                }
+                _ => {}
+            }
         }
     }
 }
-
+fn update_secret_button(
+    query: Query<(&mut SecretTimer, Option<&SecretButtonDown>)>,
+    time: Res<Time>,
+) {
+    for (mut secret_timer, secret_button_down) in query {
+        if secret_button_down.is_some() {
+            secret_timer.tick(time.delta());
+        } else {
+            secret_timer.reset();
+        }
+    }
+}
 fn difficulty_selector_init(mut commands: Commands) {
     dbg!("difficulty_selector_init!!!!!!!!!!!!");
     commands.spawn((

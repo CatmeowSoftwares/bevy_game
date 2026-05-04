@@ -5,10 +5,12 @@ edition = "2024"
 
 [dependencies]
 avian3d = "0.6.1"
-bevy = { version = "0.18.1", features = ["bevy_dev_tools", "bevy_gizmos", "debug"] }
+bevy = { version = "0.18.1", features = ["bevy_dev_tools", "debug", "trace"] }
 bevy-inspector-egui = "0.36.0"
+bevy_rand = { version = "0.14.2", features = ["chacha20", "wyrand"] }
 bevy_sprite3d = "8.0.0"
 rand = "0.10.1"
+rand_core = "0.10.1"
 
 
 [profile.dev]
@@ -16,3 +18,11 @@ opt-level = 1
 
 [profile.dev.package."*"]
 opt-level = 3
+
+
+[profile.release]
+lto = true
+opt-level = 3
+codegen-units = 1
+incremental = false
+debug = false
