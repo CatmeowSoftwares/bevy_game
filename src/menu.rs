@@ -18,6 +18,11 @@ impl Plugin for MenuPlugin {
                 Update,
                 update_secret_button.run_if(in_state(MainMenuState::MainMenu)),
             )
+            .add_systems(OnEnter(MainMenuState::Secret), secret_init)
+            .add_systems(
+                Update,
+                secret_system.run_if(in_state(MainMenuState::Secret)),
+            )
             .add_systems(
                 OnEnter(MainMenuState::DifficultySelector),
                 difficulty_selector_init,
@@ -163,12 +168,7 @@ fn main_menu_init(mut commands: Commands) {
 
 fn main_menu_system(
     mut interaction_query: Query<
-        (
-            Entity,
-            &Interaction,
-            &MainMenuButtonAction,
-            Option<&SecretTimer>,
-        ),
+        (Entity, &Interaction, &MainMenuButtonAction, &SecretTimer),
         (Changed<Interaction>, With<Button>),
     >,
     mut commands: Commands,
@@ -181,7 +181,6 @@ fn main_menu_system(
             match menu_button_action {
                 MainMenuButtonAction::Play => {
                     commands.entity(entity).insert(SecretButtonDown);
-                    menu_state.set(MainMenuState::DifficultySelector);
                 }
                 MainMenuButtonAction::Settings => {
                     menu_state.set(MainMenuState::Settings);
@@ -194,14 +193,6 @@ fn main_menu_system(
             match menu_button_action {
                 MainMenuButtonAction::Play => {
                     commands.entity(entity).remove::<SecretButtonDown>();
-                    let Some(secret_timer) = secret_timer else {
-                        break;
-                    };
-                    if secret_timer.is_finished() {
-                        menu_state.set(MainMenuState::Secret);
-                    } else {
-                        menu_state.set(MainMenuState::DifficultySelector);
-                    }
                 }
                 _ => {}
             }
@@ -211,15 +202,28 @@ fn main_menu_system(
 fn update_secret_button(
     query: Query<(&mut SecretTimer, Option<&SecretButtonDown>)>,
     time: Res<Time>,
+    mut menu_state: ResMut<NextState<MainMenuState>>,
 ) {
     for (mut secret_timer, secret_button_down) in query {
         if secret_button_down.is_some() {
             secret_timer.tick(time.delta());
+            if secret_timer.just_finished() {
+                menu_state.set(MainMenuState::Secret);
+            }
         } else {
+            if secret_timer.remaining() < Duration::from_secs(5) {
+                menu_state.set(MainMenuState::DifficultySelector);
+            }
             secret_timer.reset();
         }
     }
 }
+fn secret_init(mut commands: Commands) {
+    commands.spawn((DespawnOnExit(MainMenuState::Secret),));
+    println!("i am now");
+}
+
+fn secret_system() {}
 fn difficulty_selector_init(mut commands: Commands) {
     dbg!("difficulty_selector_init!!!!!!!!!!!!");
     commands.spawn((
