@@ -1,6 +1,13 @@
 use std::time::Duration;
 
-use bevy::{color::palettes::css::*, prelude::*};
+use bevy::{
+    color::palettes::css::*,
+    prelude::*,
+    ui_widgets::{
+        CoreSliderDragState, Slider, SliderRange, SliderThumb, SliderValue, TrackClick,
+        UiWidgetsPlugins, observe, slider_self_update,
+    },
+};
 
 use crate::game::{Difficulty, GameMode, GameState};
 
@@ -415,3 +422,14 @@ fn game_mode_selector_system(
         }
     }
 }
+
+fn settings_init(mut commands: Commands) {
+    commands.spawn((
+        Slider {
+            track_click: TrackClick::Snap,
+        },
+        SliderValue(50.0),
+        SliderRange::new(0.0, 100.0),
+    ));
+}
+fn settings_system() {}
